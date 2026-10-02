@@ -1,5 +1,5 @@
 import { TextDataPartMarkdown } from "@/components/chat/TextDataPartMarkdown";
-import { DataPart, Message, TextPart } from "@a2a-js/sdk";
+import { DataPart, Message, TextPart } from "@/types/a2a-ui";
 
 interface AIMessageProps {
   message: Message;

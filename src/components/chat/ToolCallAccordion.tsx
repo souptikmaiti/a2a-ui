@@ -3,7 +3,7 @@ import { Accordion, AccordionDetails, AccordionSummary, Box, Typography } from "
 import React from "react";
 
 import { TextDataPartMarkdown } from "@/components/chat/TextDataPartMarkdown";
-import { DataPart, FilePart, Message, TextPart } from "@a2a-js/sdk";
+import { DataPart, FilePart, Message, TextPart } from "@/types/a2a-ui";
 
 interface ToolCallAccordionProps {
   toolCallMessage: Message;

@@ -1,16 +1,16 @@
+import React from "react";
+
 import {
   Artifact,
   Message,
+  StreamEvent,
   Task,
   TaskArtifactUpdateEvent,
   TaskStatusUpdateEvent,
-} from "@a2a-js/sdk";
-import React from "react";
-
+} from "@/types/a2a-ui";
 import { ChatContext } from "@/types/chat";
 
-// Union type of all possible streaming events from the A2A protocol
-export type StreamEvent = Message | Task | TaskStatusUpdateEvent | TaskArtifactUpdateEvent;
+const CHAT_STORAGE_KEY = "deep-divers-a2a-ui:contexts:v1";
 
 export interface UseChatContextsReturn {
   chatContexts: { [contextId: string]: ChatContext };
@@ -26,6 +26,37 @@ export interface UseChatContextsReturn {
 
 export const useChatContexts = (): UseChatContextsReturn => {
   const [chatContexts, setChatContexts] = React.useState<{ [contextId: string]: ChatContext }>({});
+  const [loaded, setLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(CHAT_STORAGE_KEY);
+      if (saved) {
+        const restored = JSON.parse(saved) as Record<string, ChatContext>;
+        for (const context of Object.values(restored)) {
+          context.loading = false;
+          context.pendingMessage = null;
+        }
+        setChatContexts(restored);
+      }
+    } catch (error) {
+      console.warn("Could not restore local A2A chat history", error);
+    } finally {
+      setLoaded(true);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!loaded) return;
+    const timer = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatContexts));
+      } catch (error) {
+        console.warn("Could not save local A2A chat history", error);
+      }
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [chatContexts, loaded]);
 
   const addChatContext = (context: ChatContext): void => {
     setChatContexts((prev) => ({
@@ -247,7 +278,12 @@ export const useChatContexts = (): UseChatContextsReturn => {
       } else {
         // Update existing artifact
         updatedArtifacts = [...artifacts];
-        updatedArtifacts[artifactIndex] = artifactEvent.artifact;
+        updatedArtifacts[artifactIndex] = artifactEvent.append
+          ? {
+              ...artifacts[artifactIndex],
+              parts: [...artifacts[artifactIndex].parts, ...artifactEvent.artifact.parts],
+            }
+          : artifactEvent.artifact;
       }
 
       const updatedTask: Task = {

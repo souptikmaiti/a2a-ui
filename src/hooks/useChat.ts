@@ -1,16 +1,18 @@
-import { AgentCard, Message, MessageSendParams, SendMessageResponse, Task } from "@a2a-js/sdk";
-import { A2AClient } from "@a2a-js/sdk/client";
+import { AgentCard } from "@a2a-js/sdk";
+import { ClientFactory, JsonRpcTransportFactory } from "@a2a-js/sdk/client";
 import React from "react";
 import { v4 as uuidv4 } from "uuid";
 
 import { useToastContext } from "@/contexts/ToastContext";
 import { useAgents, UseAgentsReturn } from "@/hooks/useAgents";
-import { StreamEvent, useChatContexts, UseChatContextsReturn } from "@/hooks/useChatContexts";
+import { useChatContexts, UseChatContextsReturn } from "@/hooks/useChatContexts";
 import { useScrolling, UseScrollingReturn } from "@/hooks/useScrolling";
 import { useSelected, UseSelectedReturn } from "@/hooks/useSelected";
 import { useSettings, UseSettingsReturn } from "@/hooks/useSettings";
 import { createA2AProxyFetch } from "@/lib/api/proxy-fetch";
+import { toViewMessage, toViewStreamEvent, toViewTask } from "@/lib/a2a-v1";
 import { createMessageSendParams, createTempChatContext, terminalStates } from "@/lib/chat";
+import { agentEndpoint, Message, Task } from "@/types/a2a-ui";
 import { ChatContext } from "@/types/chat";
 
 interface UseChatReturn {
@@ -131,10 +133,10 @@ export const useChat = (): UseChatReturn => {
 
     // Set the active agent for this context
     if (context) {
-      const foundAgent = agents.agents.find((agent: AgentCard) => agent.url === context.agent.url);
-      if (foundAgent) {
-        agents.setActiveAgent(context.agent);
-      }
+      const foundAgent = agents.agents.find(
+        (agent: AgentCard) => agentEndpoint(agent) === agentEndpoint(context.agent)
+      );
+      agents.setActiveAgent(foundAgent ?? context.agent);
     }
 
     setNewChatMessageText("");
@@ -176,7 +178,7 @@ export const useChat = (): UseChatReturn => {
     }
 
     try {
-      const messageSendParams: MessageSendParams = createMessageSendParams(
+      const { request, pending } = createMessageSendParams(
         messageText,
         contextId,
         activeTask?.id
@@ -192,26 +194,35 @@ export const useChat = (): UseChatReturn => {
 
       // Create an A2A Client with an A2A proxy fetch function that allows the it to connect to an
       // A2A Server through the Next.js proxy.
-      const A2AProxyFetch: typeof fetch = createA2AProxyFetch(settings.getHeadersObject());
-      const client = new A2AClient(agents.activeAgent, { fetchImpl: A2AProxyFetch });
+      const proxyFetch = createA2AProxyFetch(settings.getHeadersObject());
+      const factory = new ClientFactory({
+        transports: [new JsonRpcTransportFactory({ fetchImpl: proxyFetch })],
+      });
+      const client = await factory.createFromAgentCard(agents.activeAgent);
 
       if (!agents.activeAgent.capabilities?.streaming) {
         // Non-streaming
-        chatContexts.setChatContextPendingMessage(contextId, messageSendParams.message);
-        const response: SendMessageResponse = await client.sendMessage(messageSendParams);
+        chatContexts.setChatContextPendingMessage(contextId, pending);
+        const response = await client.sendMessage(request);
+        const result: Task | Message = "messageId" in response
+          ? toViewMessage(response)
+          : toViewTask(response);
 
-        if ("result" in response) {
-          const result: Task | Message = response.result;
-
+        if (result) {
           if (result.kind === "message") {
             // Handle Message response
             chatContexts.updateMessagesInContext(contextId, [
-              messageSendParams.message,
+              pending,
               result as Message,
             ]);
           } else if (result.kind === "task") {
             // Handle Task response
-            chatContexts.updateTaskInContext(contextId, result as Task);
+            chatContexts.updateTaskInContext(contextId, {
+              ...result,
+              history: result.history?.some((message) => message.messageId === pending.messageId)
+                ? result.history
+                : [pending, ...(result.history ?? [])],
+            });
             selected.setSelectedTaskId((result as Task).id);
           }
 
@@ -230,20 +241,26 @@ export const useChat = (): UseChatReturn => {
       } else {
         if (!activeTask?.id) {
           // New task
-          chatContexts.setChatContextPendingMessage(contextId, messageSendParams.message);
+          chatContexts.setChatContextPendingMessage(contextId, pending);
         } else {
           // Existing task
-          chatContexts.handleStreamEvent(contextId, messageSendParams.message);
+          chatContexts.handleStreamEvent(contextId, pending);
         }
 
         // Streaming
         try {
-          const stream: AsyncGenerator<StreamEvent, void, unknown> =
-            client.sendMessageStream(messageSendParams);
+          const stream = client.sendMessageStream(request);
 
-          for await (const event of stream) {
+          for await (const response of stream) {
+            const event = toViewStreamEvent(response);
+            if (!event) continue;
             if (event.kind === "task") {
-              const task = event as Task;
+              const task: Task = {
+                ...event,
+                history: event.history?.some((message) => message.messageId === pending.messageId)
+                  ? event.history
+                  : [pending, ...(event.history ?? [])],
+              };
               chatContexts.setChatContextPendingMessage(contextId, null);
               chatContexts.handleStreamEvent(contextId, task);
               selected.setSelectedTaskId(task.id);

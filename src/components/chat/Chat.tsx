@@ -11,7 +11,7 @@ import { TaskDivider } from "@/components/chat/TaskDivider";
 import { ToolCallAccordion } from "@/components/chat/ToolCallAccordion";
 import { UserMessage } from "@/components/chat/UserMessage";
 import { ChatContext } from "@/types/chat";
-import { Artifact, Message, Task } from "@a2a-js/sdk";
+import { Artifact, Message, Task } from "@/types/a2a-ui";
 
 interface TaskDividerItem {
   kind: "task-divider";

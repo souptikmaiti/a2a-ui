@@ -1,5 +1,47 @@
 # Agent2Agent (A2A) UI
 
+This repository adapts [a2anet/a2a-ui](https://github.com/a2anet/a2a-ui) for the
+three independent services in `deep-divers-multi-agent`. It uses the official
+`@a2a-js/sdk` 1.x client and each service's **A2A 1.0 JSON-RPC** endpoint.
+It talks directly to the selected agent. Selecting `concierge-agent` gives the
+orchestrated experience; `git-agent` and `k8s-agent` can also be selected directly.
+No UI-specific changes are required in those agents.
+
+## Run with the local agents
+
+Start the three agent services first on ports 8000, 8001, and 8002. In this
+repository:
+
+```sh
+cp .env.example .env.local
+npm ci
+npm run dev
+```
+
+Open <http://127.0.0.1:3000>. The three local agent URLs from `.env.local` are
+loaded automatically. You can also click **+ Agent** and enter an agent base URL
+or its full `/.well-known/agent-card.json` URL. The Next.js `/api/proxy` route
+forwards the A2A requests and their SSE streams, avoiding browser CORS issues.
+The browser receives the standard A2A task, status, message, and artifact events.
+
+Use `npm run typecheck`, `npm test`, and `npm run build` to verify the UI.
+The protocol test starts a temporary loopback A2A service, so it needs local
+port binding. Agent card and streaming behavior against the real services still
+need a live end-to-end check when those services are running.
+
+Agent URLs and chat contexts are saved in this browser's `localStorage`. This
+lets the UI restore previous chats after a page reload, including their A2A
+`contextId`. It is local to that browser and is not shared across users or
+devices. The agents' own PostgreSQL task and ADK session stores remain separate.
+Avoid using this browser storage for sensitive conversations on shared machines.
+
+The upstream `/api/proxy` accepts agent URLs entered by a user. Deploy this UI
+only behind access control and network restrictions appropriate for your
+environment. `NEXT_PUBLIC_DEFAULT_HEADERS` is exposed to the browser, so do not
+put secret tokens there.
+
+## Upstream project
+
 A UI for the [Agent2Agent (A2A) Protocol](https://google-a2a.github.io/A2A/) made with [React](https://react.dev/), [Next.js](https://nextjs.org/), and [MUI](https://mui.com/).
 
 The A2A protocol has standardised agent communication by introducing concepts like: **A2A Client**, **A2A Server**, **Agent Card**, **Message**, **Task**, **Part**, **Artifact**, and [more](https://a2aproject.github.io/A2A/latest/topics/key-concepts/).

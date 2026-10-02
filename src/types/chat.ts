@@ -1,4 +1,5 @@
-import { AgentCard, Message, Task } from "@a2a-js/sdk";
+import { AgentCard } from "@a2a-js/sdk";
+import { Message, Task } from "@/types/a2a-ui";
 
 export interface ChatContext {
   contextId: string;

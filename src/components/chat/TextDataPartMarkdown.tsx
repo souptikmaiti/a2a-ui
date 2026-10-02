@@ -2,7 +2,7 @@ import { Typography } from "@mui/material";
 import { MuiMarkdown, getOverrides as muiMarkdownGetOverrides, Overrides } from "mui-markdown";
 import { Highlight, themes } from "prism-react-renderer";
 
-import { DataPart, TextPart } from "@a2a-js/sdk";
+import { DataPart, TextPart } from "@/types/a2a-ui";
 
 interface TextDataPartMarkdownProps {
   part: TextPart | DataPart;

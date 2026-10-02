@@ -5,7 +5,7 @@ import { Accordion, AccordionDetails, AccordionSummary, Box, Typography } from "
 import React from "react";
 
 import { TextDataPartMarkdown } from "@/components/chat/TextDataPartMarkdown";
-import { Artifact, Part } from "@a2a-js/sdk";
+import { Artifact, Part } from "@/types/a2a-ui";
 
 interface ArtifactAccordionProps {
   artifact: Artifact;
@@ -28,6 +28,7 @@ const renderPart = (part: Part, index: number): React.ReactNode => {
 export const ArtifactAccordion: React.FC<ArtifactAccordionProps> = ({ artifact }) => {
   return (
     <Accordion
+      defaultExpanded
       square={true}
       sx={{ border: "1px solid", borderColor: "divider", borderRadius: 5, boxShadow: "none" }}
     >

@@ -27,6 +27,7 @@ import { drawerWidth } from "@/components/sidebar/Sidebar";
 import { CustomHeader } from "@/hooks/useSettings";
 import { getDefaultAppIcon, getDefaultAppName } from "@/lib/env";
 import { AgentCard } from "@a2a-js/sdk";
+import { agentEndpoint } from "@/types/a2a-ui";
 
 interface StyledAppBarProps extends MuiAppBarProps {
   open?: boolean;
@@ -224,9 +225,9 @@ export const AppBar: React.FC<AppBarProps> = ({
         >
           {agents.map((agent) => (
             <MenuItem
-              key={`${agent.name}-${agent.url}`}
+              key={`${agent.name}-${agentEndpoint(agent)}`}
               onClick={() => handleAgentSelect(agent)}
-              selected={activeAgent?.url === agent.url}
+              selected={activeAgent ? agentEndpoint(activeAgent) === agentEndpoint(agent) : false}
               sx={{
                 width: 420,
                 mx: 1,
